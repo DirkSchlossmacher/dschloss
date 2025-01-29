@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        #gameContainer {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: skyblue;
+            touch-action: none;
+        }
+
+        #bird {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background-color: yellow;
+            border-radius: 50%;
+            z-index: 2;
+            transition: top 0.1s;
+        }
+
+        .obstacle {
+            position: fixed;
+            background-color: red;
+            z-index: 1;
+        }
+
+        #score {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            color: white;
+            z-index: 3;
+            font-family: Arial;
+            text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="bird"></div>
+        <div id="score">Score: 0</div>
+    </div>
+
+    <script>
+        let score = 0;
+        let gameRunning = true;
+        const bird = document.getElementById('bird');
+        const scoreElement = document.getElementById('score');
+
+        // Touch-Steuerung
+        document.addEventListener('touchstart', handleTouch, { passive: false });
+        document.addEventListener('touchmove', handleTouch, { passive: false });
+
+        function handleTouch(e) {
+            if (!gameRunning) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            let newTop = touch.clientY - bird.offsetHeight / 2;
+            
+            // Begrenzung an Bildschirmrändern
+            newTop = Math.max(0, newTop);
+            newTop = Math.min(window.innerHeight - bird.offsetHeight, newTop);
+            
+            bird.style.top = newTop + 'px';
+        }
+
+        // Hindernis-Erstellung
+        function createObstacle() {
+            if (!gameRunning) return;
+
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            
+            const obstacleWidth = 40;
+            const obstacleHeight = 80;
+            const obstacleY = Math.random() * (window.innerHeight - obstacleHeight);
+
+            obstacle.style.width = obstacleWidth + 'px';
+            obstacle.style.height = obstacleHeight + 'px';
+            obstacle.style.right = '0px';
+            obstacle.style.top = obstacleY + 'px';
+
+            document.getElementById('gameContainer').appendChild(obstacle);
+
+            // Hindernisbewegung
+            let obstaclePosition = 0;
+            function move() {
+                if (!gameRunning) {
+                    obstacle.remove();
+                    return;
+                }
+
+                obstaclePosition += 3;
+                obstacle.style.right = obstaclePosition + 'px';
+
+                const obstacleRect = obstacle.getBoundingClientRect();
+                
+                // Punktezählung
+                if (obstacleRect.right < 0) {
+                    obstacle.remove();
+                    score += 10;
+                    scoreElement.textContent = 'Score: ' + score;
+                    return;
+                }
+
+                // Kollisionserkennung
+                if (checkCollision(bird, obstacle)) {
+                    gameOver();
+                    return;
+                }
+
+                requestAnimationFrame(move);
+            }
+
+            requestAnimationFrame(move);
+        }
+
+        function checkCollision(a, b) {
+            const aRect = a.getBoundingClientRect();
+            const bRect = b.getBoundingClientRect();
+
+            return !(aRect.right < bRect.left || 
+                    aRect.left > bRect.right || 
+                    aRect.bottom < bRect.top || 
+                    aRect.top > bRect.bottom);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            alert('Game Over! Score: ' + score);
+            window.location.reload();
+        }
+
+        // Hindernis-Spawn-Intervall
+        setInterval(() => {
+            if (gameRunning) createObstacle();
+        }, 1500);
+
+        // Erstes Hindernis
+        createObstacle();
+    </script>
+</body>
+</html>
