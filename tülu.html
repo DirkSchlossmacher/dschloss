@@ -3,116 +3,111 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simple Flappy Bird</title>
+<title>Ball in Glass Animation</title>
 <style>
-  * {
+  body, html {
     margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  #game-container {
-    position: relative;
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
-    background-color: #4ec0ca;
-  }
-  #bird {
-    position: absolute;
-    width: 50px;
-    height: 35px;
-    background-color: yellow;
-    border-radius: 5px;
-    top: 50%;
-    left: 15%;
-    transform: translateY(-50%);
-  }
-  #pipe {
-    position: absolute;
-    width: 50px;
     height: 100%;
-    right: -50px;
-    background-color: green;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #eee;
   }
-  #pipe::before, #pipe::after {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 50%;
-    background-color: inherit;
-  }
-  #pipe::before {
-    top: -50%;
-  }
-  #pipe::after {
-    bottom: -50%;
-  }
-  #score {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 2em;
-    color: white;
+  canvas {
+    border: 1px solid #000;
+    background-color: #fff;
+    touch-action: none;
   }
 </style>
 </head>
 <body>
 
-<div id="game-container">
-  <div id="bird"></div>
-  <div id="pipe"></div>
-  <div id="score">0</div>
-</div>
+<canvas id="myCanvas" width="300" height="300"></canvas>
 
 <script>
-const bird = document.getElementById('bird');
-const pipe = document.getElementById('pipe');
-const scoreDisplay = document.getElementById('score');
-let birdY = 50;
-let gravity = 0.5;
-let velocity = 0;
-let score = 0;
-let pipeX = 100;
-let pipeGap = 150;
+const canvas = document.getElementById('myCanvas');
+const ctx = canvas.getContext('2d');
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+const radius = Math.min(centerX, centerY) * 0.9;
+const ballRadius = 10;
+let ballX = centerX;
+let ballY = 0;
+let dx = 0;
+let dy = 2; // Gravity effect
+let angle = (Math.random() * 30 - 15) * (Math.PI / 180); // Random angle between -15° and 15°
 
-function updateGameArea() {
-  // Move the bird
-  velocity += gravity;
-  birdY += velocity;
-  bird.style.top = birdY + '%';
-
-  // Move the pipe
-  pipeX -= 2;
-  pipe.style.right = pipeX + 'px';
-
-  // Check for collision
-  const birdRect = bird.getBoundingClientRect();
-  const pipeRect = pipe.getBoundingClientRect();
-
-  if (birdRect.right > pipeRect.left &&
-      ((birdRect.top < pipeRect.top + pipeGap) ||
-       (birdRect.bottom > pipeRect.bottom - pipeGap))) {
-    alert('Game Over! Score: ' + score);
-    location.reload(); // Reloads the page to restart the game
-  }
-
-  if (pipeRect.right < 0) { // Pipe has passed the bird
-    score++;
-    scoreDisplay.textContent = score;
-    pipeX = 100; // Reset pipe position
-    pipeGap = Math.random() * 30 + 120; // Randomize pipe gap
-  }
-  
-  requestAnimationFrame(updateGameArea);
+function drawBall() {
+  ctx.beginPath();
+  ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+  ctx.fillStyle = "#0095DD";
+  ctx.fill();
+  ctx.closePath();
 }
 
-// Touch event listener for bird flap
-document.addEventListener('touchstart', () => {
-  velocity = -8; // Flap upwards
+function drawGlass() {
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = "#000";
+  ctx.stroke();
+  ctx.closePath();
+}
+
+function updateBallPosition() {
+  ballX += dx;
+  ballY += dy;
+
+  // Reflect at the glass walls
+  const distanceFromCenter = Math.sqrt(Math.pow(ballX - centerX, 2) + Math.pow(ballY - centerY, 2));
+  if (distanceFromCenter + ballRadius >= radius) {
+    // Calculate the normal vector
+    const nx = (ballX - centerX) / distanceFromCenter;
+    const ny = (ballY - centerY) / distanceFromCenter;
+
+    // Reflect the velocity vector
+    const dotProduct = dx * nx + dy * ny;
+    dx = dx - 2 * dotProduct * nx;
+    dy = dy - 2 * dotProduct * ny;
+
+    // Apply some damping (optional)
+    dx *= 0.99;
+    dy *= 0.99;
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGlass();
+  drawBall();
+  updateBallPosition();
+  requestAnimationFrame(draw);
+}
+
+// Touch interaction
+let lastX, lastY;
+canvas.addEventListener('touchstart', (e) => {
+  const touch = e.touches[0];
+  lastX = touch.clientX;
+  lastY = touch.clientY;
 });
 
-// Start the game loop
-updateGameArea();
+canvas.addEventListener('touchmove', (e) => {
+  const touch = e.touches[0];
+  const deltaX = touch.clientX - lastX;
+  const deltaY = touch.clientY - lastY;
+  lastX = touch.clientX;
+  lastY = touch.clientY;
+  
+  // Apply the gesture movement to the ball's velocity
+  dx += deltaX * 0.1;
+  dy += deltaY * 0.1;
+  e.preventDefault();
+});
+
+// Initialize the animation
+ballX += Math.sin(angle) * radius * 0.8;
+ballY += Math.cos(angle) * radius * 0.8;
+draw();
 </script>
 
 </body>
