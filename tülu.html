@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simple Flappy Bird</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  #game-container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #4ec0ca;
+  }
+  #bird {
+    position: absolute;
+    width: 50px;
+    height: 35px;
+    background-color: yellow;
+    border-radius: 5px;
+    top: 50%;
+    left: 15%;
+    transform: translateY(-50%);
+  }
+  #pipe {
+    position: absolute;
+    width: 50px;
+    height: 100%;
+    right: -50px;
+    background-color: green;
+  }
+  #pipe::before, #pipe::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 50%;
+    background-color: inherit;
+  }
+  #pipe::before {
+    top: -50%;
+  }
+  #pipe::after {
+    bottom: -50%;
+  }
+  #score {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 2em;
+    color: white;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="bird"></div>
+  <div id="pipe"></div>
+  <div id="score">0</div>
+</div>
+
+<script>
+const bird = document.getElementById('bird');
+const pipe = document.getElementById('pipe');
+const scoreDisplay = document.getElementById('score');
+let birdY = 50;
+let gravity = 0.5;
+let velocity = 0;
+let score = 0;
+let pipeX = 100;
+let pipeGap = 150;
+
+function updateGameArea() {
+  // Move the bird
+  velocity += gravity;
+  birdY += velocity;
+  bird.style.top = birdY + '%';
+
+  // Move the pipe
+  pipeX -= 2;
+  pipe.style.right = pipeX + 'px';
+
+  // Check for collision
+  const birdRect = bird.getBoundingClientRect();
+  const pipeRect = pipe.getBoundingClientRect();
+
+  if (birdRect.right > pipeRect.left &&
+      ((birdRect.top < pipeRect.top + pipeGap) ||
+       (birdRect.bottom > pipeRect.bottom - pipeGap))) {
+    alert('Game Over! Score: ' + score);
+    location.reload(); // Reloads the page to restart the game
+  }
+
+  if (pipeRect.right < 0) { // Pipe has passed the bird
+    score++;
+    scoreDisplay.textContent = score;
+    pipeX = 100; // Reset pipe position
+    pipeGap = Math.random() * 30 + 120; // Randomize pipe gap
+  }
+  
+  requestAnimationFrame(updateGameArea);
+}
+
+// Touch event listener for bird flap
+document.addEventListener('touchstart', () => {
+  velocity = -8; // Flap upwards
+});
+
+// Start the game loop
+updateGameArea();
+</script>
+
+</body>
+</html>
