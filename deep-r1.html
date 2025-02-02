@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bouncing Ball in Glass</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f0f0f0;
+            touch-action: none;
+            overflow: hidden;
+        }
+
+        #glass-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+
+        #glass {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ffffff88, #ffffff22);
+            border: 4px solid #ffffff;
+            box-shadow: 0 0 20px #00000033,
+                       inset 0 0 20px #00000011;
+        }
+
+        #ball {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff4444;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 10px #00000033;
+        }
+    </style>
+</head>
+<body>
+    <div id="glass-container">
+        <div id="glass"></div>
+        <div id="ball"></div>
+    </div>
+
+    <script>
+        const ball = document.getElementById('ball');
+        const glass = document.getElementById('glass-container');
+        const glassRadius = glass.offsetWidth / 2;
+        const ballRadius = 10;
+        
+        let pos = { x: glassRadius, y: -50 };
+        let vel = { x: 0, y: 0 };
+        let gravity = 0.5;
+        let damping = 0.8;
+        let isTouching = false;
+        let lastTouch = { x: 0, y: 0 };
+
+        // Initialize with random angle between -15° and 15°
+        const angle = (Math.random() * 30 - 15) * Math.PI / 180;
+        vel.x = Math.sin(angle) * 5;
+        vel.y = Math.cos(angle) * 5;
+
+        function updatePosition() {
+            if (!isTouching) {
+                vel.y += gravity;
+            }
+
+            pos.x += vel.x;
+            pos.y += vel.y;
+
+            // Collision detection with glass walls
+            const dx = pos.x - glassRadius;
+            const dy = pos.y - glassRadius;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            
+            if (distance + ballRadius > glassRadius) {
+                const normal = { x: dx/distance, y: dy/distance };
+                const dot = vel.x * normal.x + vel.y * normal.y;
+                
+                vel.x -= 2 * dot * normal.x;
+                vel.y -= 2 * dot * normal.y;
+                
+                vel.x *= damping;
+                vel.y *= damping;
+                
+                // Reposition to avoid overlap
+                const overlap = distance + ballRadius - glassRadius;
+                pos.x -= overlap * normal.x;
+                pos.y -= overlap * normal.y;
+            }
+
+            ball.style.left = pos.x + 'px';
+            ball.style.top = pos.y + 'px';
+            
+            requestAnimationFrame(updatePosition);
+        }
+
+        // Touch/mouse handling
+        glass.addEventListener('touchstart', handleStart);
+        glass.addEventListener('mousedown', handleStart);
+        
+        glass.addEventListener('touchmove', handleMove);
+        glass.addEventListener('mousemove', handleMove);
+        
+        glass.addEventListener('touchend', handleEnd);
+        glass.addEventListener('mouseup', handleEnd);
+
+        function handleStart(e) {
+            isTouching = true;
+            lastTouch = getEventPosition(e);
+            e.preventDefault();
+        }
+
+        function handleMove(e) {
+            if (!isTouching) return;
+            
+            const newTouch = getEventPosition(e);
+            const delta = {
+                x: newTouch.x - lastTouch.x,
+                y: newTouch.y - lastTouch.y
+            };
+            
+            vel.x += delta.x * 0.5;
+            vel.y += delta.y * 0.5;
+            
+            lastTouch = newTouch;
+            e.preventDefault();
+        }
+
+        function handleEnd() {
+            isTouching = false;
+        }
+
+        function getEventPosition(e) {
+            if (e.touches) {
+                const rect = glass.getBoundingClientRect();
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            const rect = glass.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        // Start animation
+        updatePosition();
+    </script>
+</body>
+</html>
