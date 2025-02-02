@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Ensure proper scaling on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball in a Shuffled Glass</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #f0f0f0;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    // Set up the canvas
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // ----------------------------
+    // Simulation variables
+    // ----------------------------
+    // The “glass” is represented as a circle with a center and a radius.
+    let containerCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+    // Set the container’s radius to 40% of the smaller window dimension.
+    let containerRadius = Math.min(canvas.width, canvas.height) * 0.4;
+    // The container’s “tilt” (rotation) in radians.
+    let containerAngle = 0;
+
+    // The ball
+    let ballRadius = 15;
+    let ball = {
+      // Start the ball above the glass
+      x: containerCenter.x,
+      y: containerCenter.y - containerRadius - ballRadius - 20,
+      vx: 0,
+      vy: 0
+    };
+
+    // Initialize the ball so that it “falls in” with a random small horizontal deviation.
+    // That is, the ball is given an initial speed of 5 in a direction within ±15° of vertical.
+    const speed = 5;
+    const angleDeg = (Math.random() * 30) - 15; // random angle between -15° and 15°
+    const angleRad = angleDeg * Math.PI / 180;
+    ball.vx = speed * Math.sin(angleRad);
+    ball.vy = speed * Math.cos(angleRad);
+
+    // Gravity magnitude (acceleration per frame)
+    // Gravity will be applied “in the direction” of the glass’s tilt.
+    const g = 0.2;
+
+    // ----------------------------
+    // User-interaction (touch/mouse)
+    // ----------------------------
+    // When the user drags on the canvas the container’s center and rotation are updated.
+    let dragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let startContainerCenter = { x: containerCenter.x, y: containerCenter.y };
+    let startContainerAngle = containerAngle;
+    // How many radians of rotation per pixel horizontal movement?
+    const rotationFactor = 0.005;
+
+    // Touch events for mobile devices
+    canvas.addEventListener('touchstart', function(e) {
+      if (e.touches.length > 0) {
+        dragging = true;
+        dragStart.x = e.touches[0].clientX;
+        dragStart.y = e.touches[0].clientY;
+        startContainerCenter = { x: containerCenter.x, y: containerCenter.y };
+        startContainerAngle = containerAngle;
+      }
+      e.preventDefault();
+    });
+    canvas.addEventListener('touchmove', function(e) {
+      if (dragging && e.touches.length > 0) {
+        const dx = e.touches[0].clientX - dragStart.x;
+        const dy = e.touches[0].clientY - dragStart.y;
+        containerCenter.x = startContainerCenter.x + dx;
+        containerCenter.y = startContainerCenter.y + dy;
+        containerAngle = startContainerAngle + dx * rotationFactor;
+      }
+      e.preventDefault();
+    });
+    canvas.addEventListener('touchend', function(e) {
+      dragging = false;
+      e.preventDefault();
+    });
+
+    // Mouse events for desktop browsers
+    canvas.addEventListener('mousedown', function(e) {
+      dragging = true;
+      dragStart.x = e.clientX;
+      dragStart.y = e.clientY;
+      startContainerCenter = { x: containerCenter.x, y: containerCenter.y };
+      startContainerAngle = containerAngle;
+    });
+    canvas.addEventListener('mousemove', function(e) {
+      if (dragging) {
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+        containerCenter.x = startContainerCenter.x + dx;
+        containerCenter.y = startContainerCenter.y + dy;
+        containerAngle = startContainerAngle + dx * rotationFactor;
+      }
+    });
+    canvas.addEventListener('mouseup', function() {
+      dragging = false;
+    });
+    canvas.addEventListener('mouseleave', function() {
+      dragging = false;
+    });
+
+    // ----------------------------
+    // Animation & Physics
+    // ----------------------------
+    function animate() {
+      // Clear the canvas for the next frame
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Compute the gravity vector.
+      // Gravity always “pulls” downward in the container’s local coordinates.
+      // When the glass is tilted (rotated by containerAngle), the effective gravity in world space is:
+      const gravity = {
+        x: g * Math.sin(containerAngle),
+        y: g * Math.cos(containerAngle)
+      };
+
+      // Update ball velocity and position
+      ball.vx += gravity.x;
+      ball.vy += gravity.y;
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // Collision detection: if the ball’s center is farther from the container’s center than
+      // (containerRadius - ballRadius), it has hit the glass “wall.”
+      const dx = ball.x - containerCenter.x;
+      const dy = ball.y - containerCenter.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const effectiveRadius = containerRadius - ballRadius;
+      if (dist > effectiveRadius) {
+        // Find the normal from the container’s center to the ball’s center.
+        const nx = dx / dist;
+        const ny = dy / dist;
+        // Reposition the ball on the container’s boundary.
+        ball.x = containerCenter.x + nx * effectiveRadius;
+        ball.y = containerCenter.y + ny * effectiveRadius;
+        // Reflect the ball’s velocity with respect to the collision normal.
+        const dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = ball.vx - 2 * dot * nx;
+        ball.vy = ball.vy - 2 * dot * ny;
+      }
+
+      // ----------------------------
+      // Drawing the container (“glass”)
+      // ----------------------------
+      ctx.save();
+      // Translate to the container’s center.
+      ctx.translate(containerCenter.x, containerCenter.y);
+      // Rotate by the current containerAngle.
+      ctx.rotate(containerAngle);
+      // Draw the outer circle (the glass rim)
+      ctx.beginPath();
+      ctx.arc(0, 0, containerRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 10;
+      ctx.stroke();
+
+      // Draw an indicator line (a “rim” line) that rotates with the glass so you can see its tilt.
+      ctx.beginPath();
+      ctx.moveTo(-containerRadius, 0);
+      ctx.lineTo(containerRadius, 0);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.restore();
+
+      // ----------------------------
+      // Draw the ball
+      // ----------------------------
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#e74c3c';
+      ctx.fill();
+      ctx.strokeStyle = '#c0392b';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      requestAnimationFrame(animate);
+    }
+
+    // Start the animation loop
+    animate();
+  </script>
+</body>
+</html>
